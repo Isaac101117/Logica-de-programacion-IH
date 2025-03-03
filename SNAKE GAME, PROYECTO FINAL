@@ -1,0 +1,141 @@
+import pygame
+import sys
+import random
+import json
+
+# Configuración del juego
+WIDTH, HEIGHT = 600, 400
+CELL_SIZE = 20
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+
+# Cargar el puntaje más alto
+def load_high_score():
+    try:
+        with open("high_score.json", "r") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"name": "", "score": 0}
+
+# Guardar el puntaje más alto
+def save_high_score(name, score):
+    high_score = load_high_score()
+    if score > high_score["score"]:
+        with open("high_score.json", "w") as file:
+            json.dump({"name": name, "score": score}, file)
+
+# Función principal del juego
+def game_loop(player_name):
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    clock = pygame.time.Clock()
+    font = pygame.font.Font(None, 30)
+
+    snake = [(100, 100)]
+    direction = (CELL_SIZE, 0)
+    food = (random.randint(0, WIDTH // CELL_SIZE - 1) * CELL_SIZE, 
+            random.randint(0, HEIGHT // CELL_SIZE - 1) * CELL_SIZE)
+    score = 0
+
+    while True:
+        screen.fill(WHITE)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                save_high_score(player_name, score)
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP and direction != (0, CELL_SIZE):
+                    direction = (0, -CELL_SIZE)
+                elif event.key == pygame.K_DOWN and direction != (0, -CELL_SIZE):
+                    direction = (0, CELL_SIZE)
+                elif event.key == pygame.K_LEFT and direction != (CELL_SIZE, 0):
+                    direction = (-CELL_SIZE, 0)
+                elif event.key == pygame.K_RIGHT and direction != (-CELL_SIZE, 0):
+                    direction = (CELL_SIZE, 0)
+        
+        # Mover la culebra
+        new_head = (snake[0][0] + direction[0], snake[0][1] + direction[1])
+        
+        if new_head in snake or not (0 <= new_head[0] < WIDTH and 0 <= new_head[1] < HEIGHT):
+            save_high_score(player_name, score)
+            break
+        
+        snake.insert(0, new_head)
+        
+        if new_head == food:
+            score += 10
+            food = (random.randint(0, WIDTH // CELL_SIZE - 1) * CELL_SIZE, 
+                    random.randint(0, HEIGHT // CELL_SIZE - 1) * CELL_SIZE)
+        else:
+            snake.pop()
+        
+        # Dibujar la culebra y la comida
+        for segment in snake:
+            pygame.draw.rect(screen, GREEN, (*segment, CELL_SIZE, CELL_SIZE))
+        pygame.draw.rect(screen, RED, (*food, CELL_SIZE, CELL_SIZE))
+        
+        # Mostrar el puntaje
+        score_text = font.render(f"Puntaje: {score}", True, BLUE)
+        screen.blit(score_text, (10, 10))
+        
+        pygame.display.flip()
+        clock.tick(10)
+    
+# Menú principal
+def main_menu():
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    font = pygame.font.Font(None, 40)
+    clock = pygame.time.Clock()
+    input_box = pygame.Rect(200, 150, 200, 40)
+    color_inactive = pygame.Color('lightskyblue3')
+    color_active = pygame.Color('dodgerblue2')
+    color = color_inactive
+    active = False
+    text = ''
+    
+    while True:
+        screen.fill(WHITE)
+        
+        title = font.render("SNAKE GAME", True, GREEN)
+        screen.blit(title, (WIDTH // 2 - 80, 50))
+        
+        prompt = font.render("Ingresa tu nombre:", True, BLUE)
+        screen.blit(prompt, (200, 100))
+        
+        pygame.draw.rect(screen, color, input_box, 2)
+        text_surface = font.render(text, True, BLUE)
+        screen.blit(text_surface, (input_box.x + 5, input_box.y + 5))
+        
+        high_score = load_high_score()
+        high_score_text = font.render(f"Mejor Puntaje: {high_score['name']} - {high_score['score']}", True, RED)
+        screen.blit(high_score_text, (150, 250))
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if input_box.collidepoint(event.pos):
+                    active = not active
+                else:
+                    active = False
+                color = color_active if active else color_inactive
+            elif event.type == pygame.KEYDOWN:
+                if active:
+                    if event.key == pygame.K_RETURN:
+                        game_loop(text)
+                    elif event.key == pygame.K_BACKSPACE:
+                        text = text[:-1]
+                    else:
+                        text += event.unicode
+        
+        pygame.display.flip()
+        clock.tick(30)
+
+if __name__ == "__main__":
+    main_menu()
